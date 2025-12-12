@@ -5,83 +5,365 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2D Minecraft</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+    <!-- Firebase 9 (compat версия для простоты) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
 <body>
     <div class="container">
         <!-- Экран авторизации -->
-        <div id="auth-screen" class="screen">
+        <div id="auth-screen" class="screen active">
             <div class="auth-container">
                 <h1>2D Minecraft</h1>
+                
+                <!-- Форма входа -->
                 <div class="auth-form" id="login-form">
-                    <h2>Вход</h2>
-                    <input type="email" id="login-email" placeholder="Email" required>
-                    <input type="password" id="login-password" placeholder="Пароль" required>
-                    <button onclick="login()">Войти</button>
-                    <p>Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
+                    <h2>Вход в игру</h2>
+                    <div class="form-group">
+                        <input type="email" id="login-email" placeholder="Ваш email" required>
+                        <span class="error" id="login-email-error"></span>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="login-password" placeholder="Ваш пароль" required>
+                        <span class="error" id="login-password-error"></span>
+                    </div>
+                    <button id="login-btn" onclick="login()">Войти в игру</button>
+                    <div class="auth-links">
+                        <p>Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
+                        <p class="demo-info">Демо-данные: test@test.com / 123456</p>
+                    </div>
                 </div>
                 
+                <!-- Форма регистрации -->
                 <div class="auth-form" id="register-form" style="display: none;">
-                    <h2>Регистрация</h2>
-                    <input type="text" id="register-username" placeholder="Имя игрока" required>
-                    <input type="email" id="register-email" placeholder="Email" required>
-                    <input type="password" id="register-password" placeholder="Пароль" required>
-                    <button onclick="register()">Зарегистрироваться</button>
-                    <p>Уже есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
+                    <h2>Создание аккаунта</h2>
+                    <div class="form-group">
+                        <input type="text" id="register-username" placeholder="Имя игрока" required maxlength="20">
+                        <span class="error" id="register-username-error"></span>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" id="register-email" placeholder="Email" required>
+                        <span class="error" id="register-email-error"></span>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="register-password" placeholder="Пароль (минимум 6 символов)" required minlength="6">
+                        <span class="error" id="register-password-error"></span>
+                    </div>
+                    <button id="register-btn" onclick="register()">Создать аккаунт</button>
+                    <div class="auth-links">
+                        <p>Уже есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
+                    </div>
+                </div>
+                
+                <!-- Информация об игре -->
+                <div class="game-info">
+                    <h3>🔥 Особенности игры:</h3>
+                    <ul>
+                        <li>🎮 2D геймплей в стиле Minecraft</li>
+                        <li>👥 Система регистрации и входа</li>
+                        <li>📦 Инвентарь и система крафта</li>
+                        <li>💬 Чат с игроками</li>
+                        <li>💾 Автосохранение прогресса</li>
+                        <li>🌍 Генерация случайного мира</li>
+                    </ul>
                 </div>
             </div>
         </div>
 
         <!-- Экран игры -->
-        <div id="game-screen" class="screen" style="display: none;">
-            <div class="game-header">
-                <div class="player-info">
-                    <span id="player-name"></span>
-                    <div class="stats">
-                        <span>❤️ <span id="health">100</span></span>
-                        <span>🍖 <span id="food">100</span></span>
-                        <span>⛏️ Уровень: <span id="level">1</span></span>
-                    </div>
-                </div>
-                <button onclick="logout()" class="logout-btn">Выйти</button>
-            </div>
-            
-            <div class="game-container">
-                <canvas id="game-canvas"></canvas>
-                
-                <div class="inventory">
-                    <h3>Инвентарь</h3>
-                    <div class="hotbar" id="hotbar">
-                        <!-- Горячая панель будет заполнена через JS -->
-                    </div>
-                    <div class="crafting">
-                        <h4>Крафт</h4>
-                        <button onclick="craft('wood_sword')">Деревянный меч (4x дерево)</button>
-                        <button onclick="craft('stone_pickaxe')">Каменная кирка (3x камень + 2x палка)</button>
+        <div id="game-screen" class="screen">
+            <!-- Шапка игры -->
+            <header class="game-header">
+                <div class="header-left">
+                    <div class="player-card">
+                        <div class="player-avatar">👤</div>
+                        <div class="player-details">
+                            <h2 id="player-name">Игрок</h2>
+                            <div class="player-level">
+                                <span class="level-icon">⭐</span>
+                                <span>Уровень: <span id="level">1</span></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="controls">
-                    <h3>Управление</h3>
-                    <p>WASD - движение</p>
-                    <p>Пробел - прыжок</p>
-                    <p>ЛКМ - разрушать блоки</p>
-                    <p>ПКМ - ставить блоки</p>
-                    <p>Цифры 1-9 - выбор слота</p>
+                <div class="header-center">
+                    <div class="game-stats">
+                        <div class="stat health">
+                            <span class="stat-icon">❤️</span>
+                            <div class="stat-bar">
+                                <div class="stat-fill" id="health-bar" style="width: 100%"></div>
+                            </div>
+                            <span class="stat-value" id="health-value">100/100</span>
+                        </div>
+                        <div class="stat food">
+                            <span class="stat-icon">🍖</span>
+                            <div class="stat-bar">
+                                <div class="stat-fill" id="food-bar" style="width: 100%"></div>
+                            </div>
+                            <span class="stat-value" id="food-value">100/100</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="chat">
-                <input type="text" id="chat-input" placeholder="Напишите сообщение..." onkeypress="chatKeyPress(event)">
-                <button onclick="sendMessage()">Отправить</button>
-                <div id="chat-messages"></div>
-            </div>
+                
+                <div class="header-right">
+                    <button class="btn btn-logout" onclick="logout()">
+                        <span class="btn-icon">🚪</span>
+                        Выйти
+                    </button>
+                    <button class="btn btn-save" onclick="saveGameManual()">
+                        <span class="btn-icon">💾</span>
+                        Сохранить
+                    </button>
+                </div>
+            </header>
+
+            <!-- Основное игровое поле -->
+            <main class="game-main">
+                <!-- Игровое поле -->
+                <div class="game-field">
+                    <canvas id="game-canvas" width="1000" height="600"></canvas>
+                    <div class="game-tips">
+                        <p>🔄 Используйте <kbd>WASD</kbd> для движения, <kbd>SPACE</kbd> для прыжка</p>
+                        <p>🛠️ <kbd>ЛКМ</kbd> - разрушать, <kbd>ПКМ</kbd> - ставить блоки</p>
+                        <p>🎒 Нажмите цифры <kbd>1-9</kbd> для выбора слота инвентаря</p>
+                    </div>
+                </div>
+                
+                <!-- Боковая панель -->
+                <aside class="game-sidebar">
+                    <!-- Горячая панель -->
+                    <div class="hotbar-container">
+                        <h3>🎒 Горячая панель</h3>
+                        <div class="hotbar" id="hotbar">
+                            <div class="hotbar-slot active" data-slot="0">
+                                <div class="slot-content">🟫</div>
+                                <div class="slot-number">1</div>
+                                <div class="slot-count">10</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="1">
+                                <div class="slot-content">🪵</div>
+                                <div class="slot-number">2</div>
+                                <div class="slot-count">5</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="2">
+                                <div class="slot-content">🪨</div>
+                                <div class="slot-number">3</div>
+                                <div class="slot-count">3</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="3">
+                                <div class="slot-content">🪵</div>
+                                <div class="slot-number">4</div>
+                                <div class="slot-count">0</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="4">
+                                <div class="slot-content"></div>
+                                <div class="slot-number">5</div>
+                                <div class="slot-count">0</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="5">
+                                <div class="slot-content"></div>
+                                <div class="slot-number">6</div>
+                                <div class="slot-count">0</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="6">
+                                <div class="slot-content"></div>
+                                <div class="slot-number">7</div>
+                                <div class="slot-count">0</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="7">
+                                <div class="slot-content"></div>
+                                <div class="slot-number">8</div>
+                                <div class="slot-count">0</div>
+                            </div>
+                            <div class="hotbar-slot" data-slot="8">
+                                <div class="slot-content"></div>
+                                <div class="slot-number">9</div>
+                                <div class="slot-count">0</div>
+                            </div>
+                        </div>
+                        <div class="hotbar-info">
+                            Выбран: <span id="selected-item">Земля (🟫)</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Крафт -->
+                    <div class="crafting-container">
+                        <h3>⚒️ Крафт</h3>
+                        <div class="crafting-recipes">
+                            <div class="recipe" onclick="craftItem('wood_sword')">
+                                <div class="recipe-result">🗡️</div>
+                                <div class="recipe-cost">
+                                    <span class="cost-item">🪵×4</span>
+                                </div>
+                                <div class="recipe-name">Деревянный меч</div>
+                                <button class="recipe-btn">Создать</button>
+                            </div>
+                            <div class="recipe" onclick="craftItem('stone_pickaxe')">
+                                <div class="recipe-result">⛏️</div>
+                                <div class="recipe-cost">
+                                    <span class="cost-item">🪨×3</span>
+                                    <span class="cost-item">🪵×2</span>
+                                </div>
+                                <div class="recipe-name">Каменная кирка</div>
+                                <button class="recipe-btn">Создать</button>
+                            </div>
+                            <div class="recipe" onclick="craftItem('wood_wall')">
+                                <div class="recipe-result">🧱</div>
+                                <div class="recipe-cost">
+                                    <span class="cost-item">🪵×6</span>
+                                </div>
+                                <div class="recipe-name">Деревянная стена</div>
+                                <button class="recipe-btn">Создать</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Управление -->
+                    <div class="controls-container">
+                        <h3>🎮 Управление</h3>
+                        <div class="controls-grid">
+                            <div class="control">
+                                <kbd>W</kbd>
+                                <span>Вперед / Прыжок</span>
+                            </div>
+                            <div class="control">
+                                <kbd>A</kbd>
+                                <span>Влево</span>
+                            </div>
+                            <div class="control">
+                                <kbd>S</kbd>
+                                <span>Назад</span>
+                            </div>
+                            <div class="control">
+                                <kbd>D</kbd>
+                                <span>Вправо</span>
+                            </div>
+                            <div class="control">
+                                <kbd>Пробел</kbd>
+                                <span>Прыжок</span>
+                            </div>
+                            <div class="control">
+                                <kbd>ЛКМ</kbd>
+                                <span>Разрушить</span>
+                            </div>
+                            <div class="control">
+                                <kbd>ПКМ</kbd>
+                                <span>Построить</span>
+                            </div>
+                            <div class="control">
+                                <kbd>1-9</kbd>
+                                <span>Слоты</span>
+                            </div>
+                            <div class="control">
+                                <kbd>ESC</kbd>
+                                <span>Пауза</span>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </main>
+
+            <!-- Чат -->
+            <footer class="game-footer">
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <h3>💬 Чат с игроками</h3>
+                        <span class="online-count">Онлайн: <span id="online-count">1</span></span>
+                    </div>
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="system-message">
+                            🎮 Добро пожаловать в 2D Minecraft! Начните общение в чате.
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" 
+                               id="chat-input" 
+                               placeholder="Напишите сообщение..." 
+                               maxlength="200"
+                               onkeypress="handleChatKeyPress(event)">
+                        <button class="chat-btn" onclick="sendChatMessage()">
+                            <span class="btn-icon">📤</span>
+                            Отправить
+                        </button>
+                    </div>
+                </div>
+            </footer>
+        </div>
+        
+        <!-- Уведомления -->
+        <div id="notification" class="notification hidden">
+            <span id="notification-text"></span>
+        </div>
+        
+        <!-- Загрузка -->
+        <div id="loading" class="loading hidden">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Загрузка...</div>
         </div>
     </div>
 
+    <!-- Скрипты -->
     <script src="auth.js"></script>
     <script src="game.js"></script>
+    
+    <!-- Инициализация -->
+    <script>
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('2D Minecraft загружается...');
+            
+            // Добавляем обработчики для горячей панели
+            document.querySelectorAll('.hotbar-slot').forEach(slot => {
+                slot.addEventListener('click', function() {
+                    const slotIndex = parseInt(this.getAttribute('data-slot'));
+                    selectHotbarSlot(slotIndex);
+                });
+            });
+            
+            // Проверяем, загружены ли Firebase
+            if (typeof firebase === 'undefined') {
+                showNotification('Ошибка: Firebase не загружен', 'error');
+            } else {
+                console.log('Firebase успешно загружен');
+            }
+        });
+        
+        // Вспомогательные функции
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const text = document.getElementById('notification-text');
+            
+            text.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.remove('hidden');
+            
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+        
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.remove('hidden');
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+        
+        function saveGameManual() {
+            if (typeof saveGame === 'function') {
+                saveGame();
+                showNotification('Игра сохранена!', 'success');
+            }
+        }
+        
+        // Экспорт для глобального использования
+        window.showNotification = showNotification;
+        window.showLoading = showLoading;
+        window.saveGameManual = saveGameManual;
+    </script>
 </body>
 </html>
